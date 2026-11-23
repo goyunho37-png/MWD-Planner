@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="탑다운 플래너" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>탑다운 일·주·월 플래너</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Inter & Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    // Tailwind 커스텀 설정: 폰트 패밀리 지정
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'Inter', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* 아이패드 터치 및 전체화면 앱 모드 최적화 */
+    html, body {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    button {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    header {
+      padding-top: env(safe-area-inset-top);
+    }
+
+    /* 깔끔한 스크롤바 및 인쇄 최적화 스타일 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    @media print {
+      body {
+        background: white !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-break-inside-avoid {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
+
+  <!-- 상단 네비게이션 및 헤더 -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+      <!-- 로고 및 타이틀 -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-sm">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+        </div>
+        <div class="truncate">
+          <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">Top-Down Planner</h1>
+          <p class="text-[11px] text-slate-400 hidden sm:block">월간 → 주간 → 일간으로 흐르는 깔끔한 계획표</p>
+        </div>
+      </div>
+
+      <!-- 뷰 전환 탭 (통합 / 월간 / 주간 / 일간) -->
+      <nav class="hidden md:flex items-center bg-slate-100 p-1 rounded-xl" aria-label="뷰 전환">
+        <button data-view="all" class="view-tab px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all">탑다운 전체</button>
+        <button data-view="monthly" class="view-tab px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all">월간 (Monthly)</button>
+        <button data-view="weekly" class="view-tab px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all">주간 (Weekly)</button>
+        <button data-view="daily" class="view-tab px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all">일간 (Daily)</button>
+      </nav>
+
+      <!-- 우측 유틸리티 버튼 -->
+      <div class="flex items-center gap-2 shrink-0">
+        <span id="save-status" class="hidden sm:inline-flex items-center gap-1 text-xs text-slate-400 mr-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          자동 저장됨
+        </span>
+        <button id="btn-export" title="iCloud / 파일 앱에 백업 저장" class="p-2.5 sm:px-3 sm:py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium flex items-center gap-1.5 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span class="hidden sm:inline">백업</span>
+        </button>
+        <button id="btn-import" title="백업 파일 불러오기" class="p-2.5 sm:px-3 sm:py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium flex items-center gap-1.5 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span class="hidden sm:inline">복원</span>
+        </button>
+        <input id="input-import-file" type="file" accept=".json,application/json" class="hidden" />
+        <button id="btn-print" title="인쇄 / PDF 저장" class="p-2.5 sm:px-3 sm:py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium flex items-center gap-1.5 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          <span class="hidden sm:inline">인쇄</span>
+        </button>
+        <button id="btn-reset-open" title="전체 초기화" class="p-2.5 sm:px-3 sm:py-2 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-600 text-xs font-medium flex items-center gap-1.5 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span class="hidden sm:inline">초기화</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 모바일 전용 뷰 전환 탭 -->
+    <div class="md:hidden border-t border-slate-100 px-3 py-2 flex items-center gap-1 overflow-x-auto bg-white">
+      <button data-view="all" class="view-tab flex-1 whitespace-nowrap px-3 py-2 text-xs font-medium rounded-lg transition-all">전체</button>
+      <button data-view="monthly" class="view-tab flex-1 whitespace-nowrap px-3 py-2 text-xs font-medium rounded-lg transition-all">월간</button>
+      <button data-view="weekly" class="view-tab flex-1 whitespace-nowrap px-3 py-2 text-xs font-medium rounded-lg transition-all">주간</button>
+      <button data-view="daily" class="view-tab flex-1 whitespace-nowrap px-3 py-2 text-xs font-medium rounded-lg transition-all">일간</button>
+    </div>
+  </header>
+
+  <!-- 메인 콘텐츠 영역 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+
+    <!-- 탑다운 흐름 안내 배너 (전체 보기 시) -->
+    <div id="flow-guide" class="bg-white border border-slate-200/80 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 shadow-sm no-print">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-semibold">STEP 1 월간</span>
+        <span>큰 목표 정리</span>
+        <span class="text-slate-300">→</span>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 font-semibold">STEP 2 주간</span>
+        <span>주차별 실행 분배</span>
+        <span class="text-slate-300">→</span>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 font-semibold">STEP 3 일간</span>
+        <span>날짜별 디테일 실행</span>
+      </div>
+      <span class="text-slate-400">각 항목의 <strong class="text-slate-600">↓ 내리기</strong> 버튼으로 하위 계획에 바로 보낼 수 있습니다.</span>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- STEP 1: 월간 계획표 (MONTHLY + 캘린더)                                -->
+    <!-- =================================================================== -->
+    <section id="section-monthly" class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden print-break-inside-avoid">
+      <!-- 월간 헤더 (달력 월 이동 포함) -->
+      <div class="p-5 sm:p-7 border-b border-slate-100 bg-gradient-to-r from-indigo-50/40 via-white to-white">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">STEP 1 · MONTHLY</span>
+              <span class="text-xs text-slate-400">달력에서 날짜를 누르면 해당 주간·일간으로 이동합니다</span>
+            </div>
+
+            <!-- 달력 월 이동 컨트롤 -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <button id="btn-prev-month" type="button" title="이전 달" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors no-print">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <h2 id="month-title-display" class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight px-1">
+                2026년 11월
+              </h2>
+              <button id="btn-next-month" type="button" title="다음 달" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors no-print">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+              </button>
+              <button id="btn-go-today" type="button" class="ml-1 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors no-print">
+                오늘로 이동
+              </button>
+            </div>
+
+            <!-- 월간 핵심 테마 / 한 줄 다짐 -->
+            <input
+              id="input-month-theme"
+              type="text"
+              placeholder="이번 달의 핵심 키워드나 한 줄 목표를 적어보세요..."
+              class="mt-2.5 w-full text-sm text-slate-600 placeholder:text-slate-400 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-400 focus:outline-none py-1 transition-colors"
+            />
+          </div>
+
+          <!-- 월간 달성률 위젯 -->
+          <div class="sm:w-48 bg-slate-50 rounded-2xl p-3.5 border border-slate-100 shrink-0">
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="font-medium text-slate-500">월간 달성률</span>
+              <span id="monthly-progress-text" class="font-bold text-indigo-600">0%</span>
+            </div>
+            <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div id="monthly-progress-bar" class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="monthly-count-text" class="text-[11px] text-slate-400 mt-1.5 text-right">0 / 0 완료</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 월간 본문: 좌측 미니 달력 + 우측 월간 목표 리스트 -->
+      <div class="p-5 sm:p-7 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        <!-- 월간 미니 달력 (5/12) -->
+        <div class="lg:col-span-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3">
+          <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-slate-400 pb-1 border-b border-slate-200/60">
+            <span>월</span><span>화</span><span>수</span><span>목</span><span>금</span>
+            <span class="text-blue-500">토</span><span class="text-rose-500">일</span>
+          </div>
+          <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-center">
+            <!-- JS로 달력 렌더링 -->
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+            <div class="flex items-center gap-3">
+              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span>선택일</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span>일정 있음</span>
+            </div>
+            <span>월~일 주간 기준</span>
+          </div>
+        </div>
+
+        <!-- 월간 할 일 입력 및 리스트 (7/12) -->
+        <div class="lg:col-span-7 space-y-5 flex flex-col justify-between">
+          <div class="space-y-4">
+            <!-- 새 월간 할 일 추가 폼 -->
+            <form id="form-monthly-add" class="flex flex-col sm:flex-row gap-2.5 no-print">
+              <input
+                id="input-monthly-category"
+                type="text"
+                placeholder="분류 (예: 업무, 공부)"
+                class="sm:w-32 px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none transition-all"
+              />
+              <input
+                id="input-monthly-task"
+                type="text"
+                placeholder="이번 달에 꼭 끝내야 할 큰 목표나 할 일을 입력하세요..."
+                class="flex-1 px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none transition-all"
+                required
+              />
+              <button
+                type="submit"
+                class="px-5 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white text-sm font-medium rounded-xl transition-colors shrink-0 shadow-sm"
+              >
+                + 월간 추가
+              </button>
+            </form>
+
+            <!-- 월간 할 일 목록 -->
+            <div id="list-monthly" class="space-y-2.5">
+              <!-- JS로 렌더링 -->
+            </div>
+          </div>
+
+          <!-- 월간 자유 메모 -->
+          <div class="pt-2">
+            <label for="input-month-memo" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">월간 메모 / 주요 일정</label>
+            <textarea
+              id="input-month-memo"
+              rows="2"
+              placeholder="이번 달에 기억해야 할 중요 일정이나 아이디어를 자유롭게 기록하세요."
+              class="w-full p-3.5 text-sm text-slate-700 bg-slate-50/70 border border-slate-200/80 rounded-2xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 focus:outline-none resize-y transition-all"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 탑다운 연결 화살표 -->
+    <div id="arrow-1" class="flex justify-center -my-2 no-print">
+      <div class="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- STEP 2: 주간 계획표 (WEEKLY - 이번 주부터 자동 계산)                   -->
+    <!-- =================================================================== -->
+    <section id="section-weekly" class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden print-break-inside-avoid">
+      <!-- 주간 헤더 및 주차 선택 바 -->
+      <div class="p-5 sm:p-7 border-b border-slate-100 bg-gradient-to-r from-teal-50/40 via-white to-white space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-700">STEP 2 · WEEKLY</span>
+            <span class="text-xs text-slate-400">이번 주부터 주차별 날짜가 자동으로 정리됩니다</span>
+          </div>
+
+          <!-- 주차 빠른 선택 탭 (이번 주 ~ +3주) + 이전/다음 주 이동 -->
+          <div class="flex items-center gap-1.5 flex-wrap no-print" id="week-tabs-container">
+            <!-- JS로 렌더링 -->
+          </div>
+        </div>
+
+        <!-- 선택된 주차 타이틀(자동 반영) & 진행률 -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 id="week-title-display" class="text-xl sm:text-2xl font-bold text-slate-900">
+                11월 23일 (월) ~ 11월 29일 (일)
+              </h2>
+              <span id="week-badge-today" class="hidden px-2 py-0.5 text-[11px] font-bold bg-teal-100 text-teal-700 rounded-md">이번 주</span>
+            </div>
+            <input
+              id="input-week-focus"
+              type="text"
+              placeholder="이번 주에 가장 집중할 핵심 목표를 적어보세요..."
+              class="mt-1.5 w-full text-sm text-slate-600 placeholder:text-slate-400 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-teal-400 focus:outline-none py-1 transition-colors"
+            />
+          </div>
+
+          <!-- 주간 달성률 위젯 -->
+          <div class="sm:w-48 bg-slate-50 rounded-2xl p-3.5 border border-slate-100 shrink-0">
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="font-medium text-slate-500">주간 달성률</span>
+              <span id="weekly-progress-text" class="font-bold text-teal-600">0%</span>
+            </div>
+            <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div id="weekly-progress-bar" class="h-full bg-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="weekly-count-text" class="text-[11px] text-slate-400 mt-1.5 text-right">0 / 0 완료</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 주간 할 일 입력 및 리스트 -->
+      <div class="p-5 sm:p-7 space-y-5">
+        <form id="form-weekly-add" class="flex flex-col sm:flex-row gap-2.5 no-print">
+          <input
+            id="input-weekly-tag"
+            type="text"
+            placeholder="요일/태그 (예: 수까지)"
+            class="sm:w-36 px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-100 focus:outline-none transition-all"
+          />
+          <input
+            id="input-weekly-task"
+            type="text"
+            placeholder="이번 주에 실행할 할 일을 입력하세요..."
+            class="flex-1 px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-100 focus:outline-none transition-all"
+            required
+          />
+          <button
+            type="submit"
+            class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-xl transition-colors shrink-0 shadow-sm"
+          >
+            + 주간 추가
+          </button>
+        </form>
+
+        <!-- 주간 할 일 목록 -->
+        <div id="list-weekly" class="space-y-2.5">
+          <!-- JS로 렌더링 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 탑다운 연결 화살표 -->
+    <div id="arrow-2" class="flex justify-center -my-2 no-print">
+      <div class="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- STEP 3: 일간 디테일 계획표 (DAILY - 선택한 주의 월~일 자동 생성)         -->
+    <!-- =================================================================== -->
+    <section id="section-daily" class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden print-break-inside-avoid">
+      <!-- 일간 헤더 및 요일별 날짜 탭 -->
+      <div class="p-5 sm:p-7 border-b border-slate-100 bg-gradient-to-r from-amber-50/50 via-white to-white space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">STEP 3 · DAILY DETAIL</span>
+            <span class="text-xs text-slate-400">요일을 눌러 날짜별 상세 계획을 작성하세요</span>
+          </div>
+        </div>
+
+        <!-- 선택된 주의 월~일 7일 탭 -->
+        <div class="grid grid-cols-7 gap-1.5 sm:gap-2 no-print" id="day-tabs-container">
+          <!-- JS로 렌더링 -->
+        </div>
+
+        <!-- 자동 반영된 날짜 타이틀 & 오늘의 한 마디 / 달성률 -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 id="day-title-display" class="text-xl sm:text-2xl font-bold text-slate-900">
+                2026년 11월 23일 월요일
+              </h2>
+              <span id="day-badge-today" class="hidden px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-800 rounded-md">오늘</span>
+            </div>
+            <div class="mt-2 flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-medium text-slate-400">오늘의 한 마디:</span>
+              <input
+                id="input-day-note"
+                type="text"
+                placeholder="오늘 하루를 어떻게 보내고 싶나요?"
+                class="flex-1 min-w-[200px] text-sm text-slate-600 placeholder:text-slate-400 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-amber-400 focus:outline-none py-0.5 transition-colors"
+              />
+            </div>
+          </div>
+
+          <!-- 일간 달성률 위젯 -->
+          <div class="sm:w-48 bg-slate-50 rounded-2xl p-3.5 border border-slate-100 shrink-0">
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="font-medium text-slate-500">일간 달성률</span>
+              <span id="daily-progress-text" class="font-bold text-amber-600">0%</span>
+            </div>
+            <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div id="daily-progress-bar" class="h-full bg-amber-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="daily-count-text" class="text-[11px] text-slate-400 mt-1.5 text-right">0 / 0 완료</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 일간 디테일 본문 (좌: 핵심 3가지 + 상세 할 일 / 우: 시간별 타임라인 + 회고) -->
+      <div class="p-5 sm:p-7 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+
+        <!-- 왼쪽 컬럼 (7/12): 오늘의 핵심 3가지 + 디테일 할 일 목록 -->
+        <div class="lg:col-span-7 space-y-6">
+          <!-- 오늘의 핵심 3가지 (Top 3 Priorities) -->
+          <div class="bg-amber-50/40 border border-amber-100 rounded-2xl p-4 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                오늘 반드시 끝낼 핵심 3가지 (Top 3)
+              </h3>
+            </div>
+            <div class="space-y-2" id="daily-top3-container">
+              <!-- JS로 렌더링 -->
+            </div>
+          </div>
+
+          <!-- 디테일 할 일 추가 및 목록 -->
+          <div class="space-y-3.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-slate-800">디테일 할 일 목록 (Detailed To-Do)</h3>
+              <span class="text-xs text-slate-400">세부 실행 방법을 아래에 바로 적을 수 있어요</span>
+            </div>
+
+            <form id="form-daily-add" class="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 no-print">
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input
+                  id="input-daily-time"
+                  type="text"
+                  placeholder="시간 (예: 14:00)"
+                  class="sm:w-32 px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-100 focus:outline-none"
+                />
+                <input
+                  id="input-daily-task"
+                  type="text"
+                  placeholder="오늘 할 일을 입력하세요..."
+                  class="flex-1 px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-100 focus:outline-none"
+                  required
+                />
+              </div>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input
+                  id="input-daily-detail"
+                  type="text"
+                  placeholder="디테일 메모 (예: 1장~3장 요약 후 문제 10개 풀기)"
+                  class="flex-1 px-3.5 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-100 focus:outline-none text-slate-600"
+                />
+                <button
+                  type="submit"
+                  class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl transition-colors shrink-0 shadow-sm"
+                >
+                  + 할 일 추가
+                </button>
+              </div>
+            </form>
+
+            <!-- 일간 할 일 리스트 -->
+            <div id="list-daily" class="space-y-2.5">
+              <!-- JS로 렌더링 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 오른쪽 컬럼 (5/12): 시간별 타임테이블 + 하루 회고 -->
+        <div class="lg:col-span-5 space-y-6">
+          <!-- 타임테이블 (Time Blocking) -->
+          <div class="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-3.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                시간별 타임라인
+              </h3>
+              <button id="btn-add-timeslot" type="button" class="text-xs font-medium text-amber-700 hover:text-amber-800 bg-amber-100/70 hover:bg-amber-100 px-2.5 py-1 rounded-lg transition-colors no-print">
+                + 시간 추가
+              </button>
+            </div>
+
+            <div id="list-timeblocks" class="space-y-2">
+              <!-- JS로 렌더링 -->
+            </div>
+          </div>
+
+          <!-- 오늘의 회고 및 자유 메모 -->
+          <div class="space-y-2">
+            <label for="input-day-review" class="block text-xs font-bold text-slate-500 uppercase tracking-wider">오늘의 기록 / 회고</label>
+            <textarea
+              id="input-day-review"
+              rows="4"
+              placeholder="잘한 점, 아쉬운 점, 내일 이어서 할 일 등을 자유롭게 적어보세요."
+              class="w-full p-4 text-sm text-slate-700 bg-slate-50/70 border border-slate-200/80 rounded-2xl focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-100 focus:outline-none resize-y transition-all"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 푸터 -->
+  <footer class="py-6 text-center text-xs text-slate-400 no-print">
+    모든 계획은 현재 브라우저에 자동 저장됩니다.
+  </footer>
+
+  <!-- 토스트 알림 (alert 대체) -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 translate-y-3 transition-all duration-300">
+    <div class="bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+      <span id="toast-message">알림</span>
+    </div>
+  </div>
+
+  <!-- 초기화 확인 모달 (confirm 대체) -->
+  <div id="modal-reset" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 space-y-4">
+      <div class="space-y-1.5">
+        <h3 class="text-base font-bold text-slate-900">플래너를 초기화할까요?</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">
+          작성하신 월간, 주간, 일간 계획이 모두 비워지고 깨끗한 새 플래너로 시작합니다.
+        </p>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button id="btn-reset-cancel" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">취소</button>
+        <button id="btn-reset-confirm" class="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors">초기화하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * 달력 연동 탑다운 일·주·월 플래너 메인 스크립트
+     * - 실제 달력(월~일 주간 기준)을 자동 계산하여 이번 주부터 날짜를 자동 반영
+     * - 월간(YYYY-MM), 주간(월요일 YYYY-MM-DD), 일간(YYYY-MM-DD) 키별로 LocalStorage에 안전하게 저장
+     * - 월간 -> 주간 -> 일간으로 할 일을 내리는 탑다운 워크플로우 지원
+     */
+
+    const STORAGE_KEY = 'topdown_planner_v2_calendar';
+    const WEEKDAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
+    const uid = () => 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+
+    // =========================================================================
+    // 날짜 계산 유틸리티 (로컬 시간대 기준, UTC 오차 방지)
+    // =========================================================================
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
+    function formatDateKey(date) {
+      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    }
+    function formatMonthKey(date) {
+      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+    }
+    function parseDateKey(key) {
+      const [y, m, d] = key.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    function addDays(date, days) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+    }
+    // 주어진 날짜가 속한 주의 월요일 Date 반환 (월~일 기준)
+    function getMonday(date) {
+      const dayOfWeek = (date.getDay() + 6) % 7; // 월=0, 화=1 ... 일=6
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate() - dayOfWeek);
+    }
+
+    // 오늘 날짜 기준 상수
+    const TODAY = new Date();
+    const TODAY_KEY = formatDateKey(TODAY);
+    const THIS_MONDAY = getMonday(TODAY);
+    const THIS_WEEK_KEY = formatDateKey(THIS_MONDAY);
+    const THIS_MONTH_KEY = formatMonthKey(TODAY);
+
+    // 기본 데이터 팩토리
+    function createEmptyMonth() {
+      return { theme: '', memo: '', tasks: [] };
+    }
+    function createEmptyWeek() {
+      return { focus: '', tasks: [] };
+    }
+    function createEmptyDay() {
+      return {
+        note: '',
+        top3: ['', '', ''],
+        tasks: [],
+        timeBlocks: [
+          { id: uid(), time: '09:00', content: '' },
+          { id: uid(), time: '11:00', content: '' },
+          { id: uid(), time: '14:00', content: '' },
+          { id: uid(), time: '16:00', content: '' },
+          { id: uid(), time: '20:00', content: '' },
+        ],
+        review: '',
+      };
+    }
+
+    // 초기 상태 생성
+    function createDefaultData(isBlank = false) {
+      const base = {
+        view: 'all',
+        selectedMonthKey: THIS_MONTH_KEY,
+        selectedWeekKey: THIS_WEEK_KEY,
+        selectedDayKey: TODAY_KEY,
+        months: {},
+        weeks: {},
+        days: {},
+      };
+
+      if (!isBlank) {
+        base.months[THIS_MONTH_KEY] = {
+          theme: '작은 실행을 매일 쌓아 큰 목표를 완성하는 달',
+          memo: '',
+          tasks: [
+            { id: uid(), category: '핵심목표', text: '월간 큰 목표를 적어보세요 (↓ 주간 버튼으로 이번 주에 바로 내릴 수 있어요)', done: false },
+            { id: uid(), category: '루틴', text: '주 3회 이상 운동하기', done: false },
+          ],
+        };
+        base.weeks[THIS_WEEK_KEY] = {
+          focus: '이번 주 핵심 과제를 요일별로 나누어 실행하기',
+          tasks: [
+            { id: uid(), tag: '수까지', text: '월간 목표에서 내려받은 핵심 업무 마무리', done: false, fromMonthly: true },
+          ],
+        };
+        base.days[TODAY_KEY] = {
+          note: '',
+          top3: ['오늘 가장 중요한 일 1순위', '', ''],
+          tasks: [
+            {
+              id: uid(),
+              time: '10:00',
+              text: '오늘 실행할 구체적인 할 일',
+              detail: '세부 단계나 준비물을 이곳에 디테일하게 기록해 보세요.',
+              done: false,
+              fromWeekly: true,
+            },
+          ],
+          timeBlocks: [
+            { id: uid(), time: '09:00', content: '하루 계획 점검 및 오전 집중 업무' },
+            { id: uid(), time: '13:00', content: '' },
+            { id: uid(), time: '15:00', content: '' },
+            { id: uid(), time: '19:00', content: '' },
+            { id: uid(), time: '21:00', content: '하루 정리 및 내일 계획 세우기' },
+          ],
+          review: '',
+        };
+      }
+
+      return base;
+    }
+
+    // 상태 로드 및 접근자
+    let state = loadState();
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return createDefaultData(false);
+        const parsed = JSON.parse(raw);
+        if (!parsed.months || !parsed.weeks || !parsed.days) {
+          return createDefaultData(false);
+        }
+        return parsed;
+      } catch (e) {
+        console.error('데이터 로드 실패:', e);
+        return createDefaultData(false);
+      }
+    }
+
+    function getMonthData(monthKey = state.selectedMonthKey) {
+      if (!state.months[monthKey]) state.months[monthKey] = createEmptyMonth();
+      return state.months[monthKey];
+    }
+    function getWeekData(weekKey = state.selectedWeekKey) {
+      if (!state.weeks[weekKey]) state.weeks[weekKey] = createEmptyWeek();
+      return state.weeks[weekKey];
+    }
+    function getDayData(dayKey = state.selectedDayKey) {
+      if (!state.days[dayKey]) state.days[dayKey] = createEmptyDay();
+      return state.days[dayKey];
+    }
+
+    // 상태 저장
+    let saveTimer = null;
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        const statusEl = document.getElementById('save-status');
+        if (statusEl) {
+          statusEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span> 저장 중...';
+          clearTimeout(saveTimer);
+          saveTimer = setTimeout(() => {
+            statusEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 자동 저장됨';
+          }, 400);
+        }
+      } catch (e) {
+        console.error('데이터 저장 실패:', e);
+      }
+    }
+
+    // 토스트 알림
+    let toastTimer = null;
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const msgEl = document.getElementById('toast-message');
+      msgEl.textContent = message;
+      toast.classList.remove('opacity-0', 'translate-y-3');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-3');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2200);
+    }
+
+    // HTML 이스케이프
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // =========================================================================
+    // 뷰 전환 렌더링
+    // =========================================================================
+    function renderView() {
+      const view = state.view || 'all';
+      const secM = document.getElementById('section-monthly');
+      const secW = document.getElementById('section-weekly');
+      const secD = document.getElementById('section-daily');
+      const arr1 = document.getElementById('arrow-1');
+      const arr2 = document.getElementById('arrow-2');
+      const guide = document.getElementById('flow-guide');
+
+      secM.classList.toggle('hidden', view !== 'all' && view !== 'monthly');
+      secW.classList.toggle('hidden', view !== 'all' && view !== 'weekly');
+      secD.classList.toggle('hidden', view !== 'all' && view !== 'daily');
+      arr1.classList.toggle('hidden', view !== 'all');
+      arr2.classList.toggle('hidden', view !== 'all');
+      guide.classList.toggle('hidden', view !== 'all');
+
+      document.querySelectorAll('.view-tab').forEach(btn => {
+        const isActive = btn.dataset.view === view;
+        if (isActive) {
+          btn.classList.add('bg-white', 'text-slate-900', 'shadow-sm', 'font-semibold');
+          btn.classList.remove('text-slate-500', 'hover:text-slate-700');
+        } else {
+          btn.classList.remove('bg-white', 'text-slate-900', 'shadow-sm', 'font-semibold');
+          btn.classList.add('text-slate-500', 'hover:text-slate-700');
+        }
+      });
+    }
+
+    // =========================================================================
+    // STEP 1: 월간 + 미니 달력 렌더링
+    // =========================================================================
+    function renderCalendarGrid() {
+      const [year, month] = state.selectedMonthKey.split('-').map(Number);
+      const firstDayOfMonth = new Date(year, month - 1, 1);
+      const startMonday = getMonday(firstDayOfMonth);
+
+      // 선택된 주의 시작/끝
+      const selWeekStart = state.selectedWeekKey;
+      const selWeekEnd = formatDateKey(addDays(parseDateKey(selWeekStart), 6));
+
+      const cells = [];
+      // 6주(42일) 또는 마지막 주까지 렌더링
+      for (let i = 0; i < 42; i++) {
+        const d = addDays(startMonday, i);
+        // 마지막 7일이 모두 다음 달이면 생략 (5주짜리 달 깔끔하게 처리)
+        if (i === 35 && d.getMonth() !== month - 1) break;
+
+        const key = formatDateKey(d);
+        const isCurrentMonth = d.getMonth() === month - 1;
+        const isToday = key === TODAY_KEY;
+        const isSelectedDay = key === state.selectedDayKey;
+        const isInSelectedWeek = key >= selWeekStart && key <= selWeekEnd;
+        const dayObj = state.days[key];
+        const hasTasks = dayObj && (dayObj.tasks.length > 0 || dayObj.top3.some(t => t.trim()));
+
+        let btnClass = 'relative flex flex-col items-center justify-center py-2 rounded-xl text-xs transition-all cursor-pointer ';
+        if (isSelectedDay) {
+          btnClass += 'bg-indigo-600 text-white font-bold shadow-sm';
+        } else if (isToday) {
+          btnClass += 'bg-indigo-100 text-indigo-800 font-bold ring-1 ring-indigo-300';
+        } else if (isInSelectedWeek) {
+          btnClass += 'bg-teal-50/90 text-slate-800 font-semibold hover:bg-teal-100/80';
+        } else if (isCurrentMonth) {
+          btnClass += 'text-slate-700 hover:bg-slate-200/60 font-medium';
+        } else {
+          btnClass += 'text-slate-300 hover:bg-slate-100';
+        }
+
+        // 주말 색상 보정 (선택되지 않았을 때)
+        const dow = d.getDay();
+        if (!isSelectedDay && isCurrentMonth) {
+          if (dow === 6) btnClass += ' text-blue-600';
+          if (dow === 0) btnClass += ' text-rose-500';
+        }
+
+        cells.push(`
+          <button type="button" onclick="selectDateFromCalendar('${key}')" class="${btnClass}">
+            <span>${d.getDate()}</span>
+            <span class="w-1 h-1 rounded-full mt-0.5 ${hasTasks ? (isSelectedDay ? 'bg-amber-300' : 'bg-amber-400') : 'bg-transparent'}"></span>
+          </button>
+        `);
+      }
+
+      document.getElementById('calendar-grid').innerHTML = cells.join('');
+    }
+
+    function renderMonthly() {
+      const [year, month] = state.selectedMonthKey.split('-').map(Number);
+      document.getElementById('month-title-display').textContent = `${year}년 ${month}월`;
+
+      const monthData = getMonthData();
+      document.getElementById('input-month-theme').value = monthData.theme || '';
+      document.getElementById('input-month-memo').value = monthData.memo || '';
+
+      renderCalendarGrid();
+
+      const tasks = monthData.tasks;
+      const doneCount = tasks.filter(t => t.done).length;
+      const percent = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
+
+      document.getElementById('monthly-progress-text').textContent = `${percent}%`;
+      document.getElementById('monthly-progress-bar').style.width = `${percent}%`;
+      document.getElementById('monthly-count-text').textContent = `${doneCount} / ${tasks.length} 완료`;
+
+      const container = document.getElementById('list-monthly');
+      if (tasks.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 text-sm text-slate-400">
+            ${month}월에 이루고 싶은 목표나 할 일을 위에서 추가해 보세요.
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = tasks.map(task => `
+        <div class="group flex items-start gap-3 p-3.5 rounded-2xl border ${task.done ? 'bg-slate-50/70 border-slate-100' : 'bg-white border-slate-200/80 hover:border-indigo-200'} transition-all">
+          <button
+            type="button"
+            onclick="toggleMonthlyTask('${task.id}')"
+            class="mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${task.done ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 hover:border-indigo-400 bg-white'}"
+            aria-label="완료 체크"
+          >
+            ${task.done ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : ''}
+          </button>
+          <div class="flex-1 min-w-0">
+            ${task.category ? `<span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 mb-1">${escapeHtml(task.category)}</span>` : ''}
+            <input
+              type="text"
+              value="${escapeHtml(task.text)}"
+              onchange="updateMonthlyTaskText('${task.id}', this.value)"
+              class="w-full text-sm bg-transparent focus:outline-none focus:bg-slate-50 rounded px-1 -mx-1 ${task.done ? 'line-through text-slate-400' : 'text-slate-800 font-medium'}"
+            />
+          </div>
+          <div class="flex items-center gap-1 shrink-0 no-print">
+            <button
+              type="button"
+              onclick="sendMonthlyToWeekly('${task.id}')"
+              title="현재 선택된 주간 계획으로 내리기"
+              class="px-2 py-1 text-[11px] font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors"
+            >
+              ↓ 주간
+            </button>
+            <button
+              type="button"
+              onclick="deleteMonthlyTask('${task.id}')"
+              title="삭제"
+              class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // =========================================================================
+    // STEP 2: 주간 렌더링 (이번 주부터 4주 빠른 탭 + 이전/다음 주 이동)
+    // =========================================================================
+    function renderWeekly() {
+      const selMonday = parseDateKey(state.selectedWeekKey);
+      const selSunday = addDays(selMonday, 6);
+      const weekData = getWeekData();
+
+      // 이번 주부터 4주치 빠른 선택 탭 생성
+      const quickWeeks = [0, 1, 2, 3].map(offset => {
+        const mon = addDays(THIS_MONDAY, offset * 7);
+        const sun = addDays(mon, 6);
+        const key = formatDateKey(mon);
+        const shortRange = `${mon.getMonth() + 1}/${mon.getDate()}~${sun.getMonth() + 1}/${sun.getDate()}`;
+        const label = offset === 0 ? `이번 주 (${shortRange})` : shortRange;
+        return { key, label };
+      });
+
+      const tabsEl = document.getElementById('week-tabs-container');
+      tabsEl.innerHTML = `
+        <button type="button" onclick="shiftWeek(-1)" title="이전 주" class="p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        ${quickWeeks.map(w => {
+          const isActive = w.key === state.selectedWeekKey;
+          return `
+            <button
+              type="button"
+              onclick="selectWeekByKey('${w.key}')"
+              class="px-3 py-1.5 text-xs font-medium rounded-xl border transition-all ${isActive ? 'bg-teal-600 border-teal-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}"
+            >
+              ${w.label}
+            </button>
+          `;
+        }).join('')}
+        <button type="button" onclick="shiftWeek(1)" title="다음 주" class="p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      `;
+
+      // 주간 타이틀 자동 표시
+      const rangeText = `${selMonday.getMonth() + 1}월 ${selMonday.getDate()}일 (월) ~ ${selSunday.getMonth() + 1}월 ${selSunday.getDate()}일 (일)`;
+      document.getElementById('week-title-display').textContent = rangeText;
+      document.getElementById('week-badge-today').classList.toggle('hidden', state.selectedWeekKey !== THIS_WEEK_KEY);
+      document.getElementById('input-week-focus').value = weekData.focus || '';
+
+      // 주간 달성률
+      const tasks = weekData.tasks;
+      const doneCount = tasks.filter(t => t.done).length;
+      const percent = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
+
+      document.getElementById('weekly-progress-text').textContent = `${percent}%`;
+      document.getElementById('weekly-progress-bar').style.width = `${percent}%`;
+      document.getElementById('weekly-count-text').textContent = `${doneCount} / ${tasks.length} 완료`;
+
+      const container = document.getElementById('list-weekly');
+      if (tasks.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 text-sm text-slate-400">
+            이 주에 실행할 일을 추가하거나, 월간 목표에서 <strong class="text-teal-600">↓ 주간</strong> 버튼으로 내려보세요.
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = tasks.map(task => `
+        <div class="group flex items-center gap-3 p-3.5 rounded-2xl border ${task.done ? 'bg-slate-50/70 border-slate-100' : 'bg-white border-slate-200/80 hover:border-teal-200'} transition-all">
+          <button
+            type="button"
+            onclick="toggleWeeklyTask('${task.id}')"
+            class="w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${task.done ? 'bg-teal-500 border-teal-500 text-white' : 'border-slate-300 hover:border-teal-400 bg-white'}"
+            aria-label="완료 체크"
+          >
+            ${task.done ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : ''}
+          </button>
+          <div class="flex-1 min-w-0 flex flex-wrap items-center gap-2">
+            ${task.fromMonthly ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 shrink-0">월간 연계</span>` : ''}
+            ${task.tag ? `<span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 shrink-0">${escapeHtml(task.tag)}</span>` : ''}
+            <input
+              type="text"
+              value="${escapeHtml(task.text)}"
+              onchange="updateWeeklyTaskText('${task.id}', this.value)"
+              class="flex-1 min-w-[160px] text-sm bg-transparent focus:outline-none focus:bg-slate-50 rounded px-1 -mx-1 ${task.done ? 'line-through text-slate-400' : 'text-slate-800 font-medium'}"
+            />
+          </div>
+          <div class="flex items-center gap-1 shrink-0 no-print">
+            <button
+              type="button"
+              onclick="sendWeeklyToDaily('${task.id}')"
+              title="현재 선택된 날짜의 일간 계획으로 내리기"
+              class="px-2 py-1 text-[11px] font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
+            >
+              ↓ 일간
+            </button>
+            <button
+              type="button"
+              onclick="deleteWeeklyTask('${task.id}')"
+              title="삭제"
+              class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // =========================================================================
+    // STEP 3: 일간 렌더링 (선택된 주의 월~일 7일 자동 생성)
+    // =========================================================================
+    function renderDaily() {
+      const selMonday = parseDateKey(state.selectedWeekKey);
+      const selDate = parseDateKey(state.selectedDayKey);
+      const dayData = getDayData();
+
+      // 선택된 주의 월~일 7일 탭 렌더링
+      const tabsEl = document.getElementById('day-tabs-container');
+      tabsEl.innerHTML = [0, 1, 2, 3, 4, 5, 6].map(offset => {
+        const d = addDays(selMonday, offset);
+        const key = formatDateKey(d);
+        const dowName = WEEKDAYS_KO[d.getDay()];
+        const isActive = key === state.selectedDayKey;
+        const isToday = key === TODAY_KEY;
+        const dObj = state.days[key];
+        const taskCount = dObj ? dObj.tasks.length : 0;
+
+        let cls = 'flex flex-col items-center justify-center py-2 px-1 rounded-2xl border transition-all ';
+        if (isActive) {
+          cls += 'bg-amber-500 border-amber-500 text-white shadow-sm';
+        } else if (isToday) {
+          cls += 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100/70';
+        } else {
+          cls += 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50';
+        }
+
+        const dowColor = !isActive ? (d.getDay() === 6 ? 'text-blue-500' : d.getDay() === 0 ? 'text-rose-500' : 'text-slate-400') : 'text-amber-100';
+
+        return `
+          <button type="button" onclick="selectDayByKey('${key}')" class="${cls}">
+            <span class="text-[11px] font-medium ${dowColor}">${dowName}</span>
+            <span class="text-sm sm:text-base font-bold mt-0.5">${d.getDate()}</span>
+            <span class="text-[10px] mt-0.5 ${isActive ? 'text-amber-100' : 'text-slate-400'}">
+              ${taskCount > 0 ? `${taskCount}개` : (isToday ? '오늘' : '·')}
+            </span>
+          </button>
+        `;
+      }).join('');
+
+      // 선택된 날짜 타이틀 자동 표시
+      const fullDateStr = `${selDate.getFullYear()}년 ${selDate.getMonth() + 1}월 ${selDate.getDate()}일 ${WEEKDAYS_KO[selDate.getDay()]}요일`;
+      document.getElementById('day-title-display').textContent = fullDateStr;
+      document.getElementById('day-badge-today').classList.toggle('hidden', state.selectedDayKey !== TODAY_KEY);
+
+      document.getElementById('input-day-note').value = dayData.note || '';
+      document.getElementById('input-day-review').value = dayData.review || '';
+
+      // Top 3 Priorities 렌더링
+      const top3El = document.getElementById('daily-top3-container');
+      top3El.innerHTML = [0, 1, 2].map(i => `
+        <div class="flex items-center gap-2.5">
+          <span class="w-5 h-5 rounded-full bg-amber-200/80 text-amber-900 text-xs font-bold flex items-center justify-center shrink-0">${i + 1}</span>
+          <input
+            type="text"
+            value="${escapeHtml(dayData.top3[i] || '')}"
+            oninput="updateDailyTop3(${i}, this.value)"
+            placeholder="핵심 우선순위 ${i + 1}"
+            class="flex-1 text-sm bg-white/80 hover:bg-white focus:bg-white border border-amber-200/60 focus:border-amber-400 rounded-xl px-3 py-1.5 focus:outline-none transition-colors"
+          />
+        </div>
+      `).join('');
+
+      // 일간 달성률
+      const tasks = dayData.tasks;
+      const doneCount = tasks.filter(t => t.done).length;
+      const percent = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
+
+      document.getElementById('daily-progress-text').textContent = `${percent}%`;
+      document.getElementById('daily-progress-bar').style.width = `${percent}%`;
+      document.getElementById('daily-count-text').textContent = `${doneCount} / ${tasks.length} 완료`;
+
+      // 일간 디테일 할 일 목록 렌더링
+      const listEl = document.getElementById('list-daily');
+      if (tasks.length === 0) {
+        listEl.innerHTML = `
+          <div class="text-center py-8 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 text-sm text-slate-400">
+            ${selDate.getMonth() + 1}월 ${selDate.getDate()}일에 할 일을 적거나, 주간 계획에서 <strong class="text-amber-600">↓ 일간</strong> 버튼으로 내려보세요.
+          </div>`;
+      } else {
+        listEl.innerHTML = tasks.map(task => `
+          <div class="p-3.5 rounded-2xl border ${task.done ? 'bg-slate-50/70 border-slate-100' : 'bg-white border-slate-200/80 hover:border-amber-200'} transition-all space-y-2">
+            <div class="flex items-start gap-3">
+              <button
+                type="button"
+                onclick="toggleDailyTask('${task.id}')"
+                class="mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${task.done ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-300 hover:border-amber-400 bg-white'}"
+                aria-label="완료 체크"
+              >
+                ${task.done ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : ''}
+              </button>
+              <div class="flex-1 min-w-0 space-y-1.5">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  ${task.fromWeekly ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 shrink-0">주간 연계</span>` : ''}
+                  <input
+                    type="text"
+                    value="${escapeHtml(task.time || '')}"
+                    onchange="updateDailyTaskField('${task.id}', 'time', this.value)"
+                    placeholder="시간"
+                    class="w-16 text-xs font-semibold text-amber-700 bg-amber-50/70 placeholder:text-amber-300 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                  />
+                  <input
+                    type="text"
+                    value="${escapeHtml(task.text)}"
+                    onchange="updateDailyTaskField('${task.id}', 'text', this.value)"
+                    class="flex-1 min-w-[140px] text-sm bg-transparent focus:outline-none focus:bg-slate-50 rounded px-1 -mx-1 ${task.done ? 'line-through text-slate-400' : 'text-slate-800 font-semibold'}"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value="${escapeHtml(task.detail || '')}"
+                  onchange="updateDailyTaskField('${task.id}', 'detail', this.value)"
+                  placeholder="+ 세부 실행 계획이나 디테일 메모 추가..."
+                  class="w-full text-xs text-slate-500 placeholder:text-slate-300 bg-slate-50/60 hover:bg-slate-50 focus:bg-white border border-transparent focus:border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none transition-colors"
+                />
+              </div>
+              <button
+                type="button"
+                onclick="deleteDailyTask('${task.id}')"
+                title="삭제"
+                class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg transition-colors shrink-0 no-print"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 시간별 타임라인 렌더링
+      const tbEl = document.getElementById('list-timeblocks');
+      if (dayData.timeBlocks.length === 0) {
+        tbEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">시간 추가 버튼을 눌러 타임라인을 구성해 보세요.</p>`;
+      } else {
+        tbEl.innerHTML = dayData.timeBlocks.map(tb => `
+          <div class="flex items-center gap-2 group">
+            <input
+              type="text"
+              value="${escapeHtml(tb.time)}"
+              onchange="updateTimeBlock('${tb.id}', 'time', this.value)"
+              placeholder="00:00"
+              class="w-16 text-xs font-semibold text-center text-slate-600 bg-white border border-slate-200 rounded-xl py-2 px-1.5 focus:border-amber-400 focus:outline-none shrink-0"
+            />
+            <input
+              type="text"
+              value="${escapeHtml(tb.content)}"
+              onchange="updateTimeBlock('${tb.id}', 'content', this.value)"
+              placeholder="일정 입력..."
+              class="flex-1 text-xs sm:text-sm text-slate-700 bg-white border border-slate-200 rounded-xl py-2 px-3 focus:border-amber-400 focus:outline-none"
+            />
+            <button
+              type="button"
+              onclick="deleteTimeBlock('${tb.id}')"
+              title="시간 삭제"
+              class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg transition-colors no-print"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        `).join('');
+      }
+    }
+
+    function renderAll() {
+      renderView();
+      renderMonthly();
+      renderWeekly();
+      renderDaily();
+    }
+
+    // =========================================================================
+    // 달력 및 날짜 이동 핸들러
+    // =========================================================================
+    window.selectDateFromCalendar = function(dateKey) {
+      const d = parseDateKey(dateKey);
+      state.selectedDayKey = dateKey;
+      state.selectedWeekKey = formatDateKey(getMonday(d));
+      state.selectedMonthKey = formatMonthKey(d);
+      saveState();
+      renderAll();
+    };
+
+    window.selectWeekByKey = function(weekKey) {
+      state.selectedWeekKey = weekKey;
+      // 선택된 날짜가 새 주간 범위에 없으면 해당 주 월요일(이번 주면 오늘)로 맞춤
+      const mon = parseDateKey(weekKey);
+      const sunKey = formatDateKey(addDays(mon, 6));
+      if (state.selectedDayKey < weekKey || state.selectedDayKey > sunKey) {
+        state.selectedDayKey = (weekKey === THIS_WEEK_KEY) ? TODAY_KEY : weekKey;
+      }
+      state.selectedMonthKey = formatMonthKey(parseDateKey(state.selectedDayKey));
+      saveState();
+      renderAll();
+    };
+
+    window.shiftWeek = function(deltaWeeks) {
+      const nextMon = addDays(parseDateKey(state.selectedWeekKey), deltaWeeks * 7);
+      window.selectWeekByKey(formatDateKey(nextMon));
+    };
+
+    window.selectDayByKey = function(dateKey) {
+      const d = parseDateKey(dateKey);
+      state.selectedDayKey = dateKey;
+      state.selectedMonthKey = formatMonthKey(d);
+      saveState();
+      renderMonthly(); // 달력 선택일 동기화
+      renderDaily();
+    };
+
+    function shiftMonth(deltaMonths) {
+      const [y, m] = state.selectedMonthKey.split('-').map(Number);
+      const next = new Date(y, m - 1 + deltaMonths, 1);
+      state.selectedMonthKey = formatMonthKey(next);
+      saveState();
+      renderMonthly();
+    }
+
+    // =========================================================================
+    // 할 일 CRUD 및 탑다운 내리기 핸들러
+    // =========================================================================
+
+    // 월간 액션
+    window.toggleMonthlyTask = function(id) {
+      const task = getMonthData().tasks.find(t => t.id === id);
+      if (task) {
+        task.done = !task.done;
+        saveState();
+        renderMonthly();
+      }
+    };
+    window.updateMonthlyTaskText = function(id, value) {
+      const task = getMonthData().tasks.find(t => t.id === id);
+      if (task) {
+        task.text = value.trim() || task.text;
+        saveState();
+      }
+    };
+    window.deleteMonthlyTask = function(id) {
+      const mData = getMonthData();
+      mData.tasks = mData.tasks.filter(t => t.id !== id);
+      saveState();
+      renderMonthly();
+    };
+    window.sendMonthlyToWeekly = function(id) {
+      const task = getMonthData().tasks.find(t => t.id === id);
+      if (!task) return;
+      const wData = getWeekData();
+      wData.tasks.unshift({
+        id: uid(),
+        tag: task.category || '',
+        text: task.text,
+        done: false,
+        fromMonthly: true,
+      });
+      saveState();
+      renderWeekly();
+      const mon = parseDateKey(state.selectedWeekKey);
+      showToast(`${mon.getMonth() + 1}/${mon.getDate()} 주간 계획으로 내렸습니다.`);
+    };
+
+    // 주간 액션
+    window.toggleWeeklyTask = function(id) {
+      const task = getWeekData().tasks.find(t => t.id === id);
+      if (task) {
+        task.done = !task.done;
+        saveState();
+        renderWeekly();
+      }
+    };
+    window.updateWeeklyTaskText = function(id, value) {
+      const task = getWeekData().tasks.find(t => t.id === id);
+      if (task) {
+        task.text = value.trim() || task.text;
+        saveState();
+      }
+    };
+    window.deleteWeeklyTask = function(id) {
+      const wData = getWeekData();
+      wData.tasks = wData.tasks.filter(t => t.id !== id);
+      saveState();
+      renderWeekly();
+    };
+    window.sendWeeklyToDaily = function(id) {
+      const task = getWeekData().tasks.find(t => t.id === id);
+      if (!task) return;
+      const dData = getDayData();
+      dData.tasks.unshift({
+        id: uid(),
+        time: '',
+        text: task.text,
+        detail: '',
+        done: false,
+        fromWeekly: true,
+      });
+      saveState();
+      renderMonthly(); // 달력 일정 표시 점 갱신
+      renderDaily();
+      const d = parseDateKey(state.selectedDayKey);
+      showToast(`${d.getMonth() + 1}월 ${d.getDate()}일 일간 계획으로 내렸습니다.`);
+    };
+
+    // 일간 액션
+    window.updateDailyTop3 = function(index, value) {
+      getDayData().top3[index] = value;
+      saveState();
+      renderCalendarGrid();
+    };
+    window.toggleDailyTask = function(id) {
+      const task = getDayData().tasks.find(t => t.id === id);
+      if (task) {
+        task.done = !task.done;
+        saveState();
+        renderDaily();
+      }
+    };
+    window.updateDailyTaskField = function(id, field, value) {
+      const task = getDayData().tasks.find(t => t.id === id);
+      if (task) {
+        task[field] = value;
+        saveState();
+      }
+    };
+    window.deleteDailyTask = function(id) {
+      const dData = getDayData();
+      dData.tasks = dData.tasks.filter(t => t.id !== id);
+      saveState();
+      renderCalendarGrid();
+      renderDaily();
+    };
+    window.updateTimeBlock = function(id, field, value) {
+      const tb = getDayData().timeBlocks.find(t => t.id === id);
+      if (tb) {
+        tb[field] = value;
+        saveState();
+      }
+    };
+    window.deleteTimeBlock = function(id) {
+      const dData = getDayData();
+      dData.timeBlocks = dData.timeBlocks.filter(t => t.id !== id);
+      saveState();
+      renderDaily();
+    };
+
+    // =========================================================================
+    // 이벤트 리스너 바인딩
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      renderAll();
+
+      // 뷰 전환 탭
+      document.querySelectorAll('.view-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.view = btn.dataset.view;
+          saveState();
+          renderView();
+        });
+      });
+
+      // 달력 월 이동 및 오늘 버튼
+      document.getElementById('btn-prev-month').addEventListener('click', () => shiftMonth(-1));
+      document.getElementById('btn-next-month').addEventListener('click', () => shiftMonth(1));
+      document.getElementById('btn-go-today').addEventListener('click', () => {
+        window.selectDateFromCalendar(TODAY_KEY);
+        showToast('오늘 날짜로 이동했습니다.');
+      });
+
+      // 월간 입력 필드
+      document.getElementById('input-month-theme').addEventListener('input', e => {
+        getMonthData().theme = e.target.value;
+        saveState();
+      });
+      document.getElementById('input-month-memo').addEventListener('input', e => {
+        getMonthData().memo = e.target.value;
+        saveState();
+      });
+
+      // 월간 할 일 추가
+      document.getElementById('form-monthly-add').addEventListener('submit', e => {
+        e.preventDefault();
+        const catInput = document.getElementById('input-monthly-category');
+        const taskInput = document.getElementById('input-monthly-task');
+        const text = taskInput.value.trim();
+        if (!text) return;
+
+        getMonthData().tasks.push({
+          id: uid(),
+          category: catInput.value.trim(),
+          text,
+          done: false,
+        });
+        catInput.value = '';
+        taskInput.value = '';
+        saveState();
+        renderMonthly();
+      });
+
+      // 주간 입력 필드
+      document.getElementById('input-week-focus').addEventListener('input', e => {
+        getWeekData().focus = e.target.value;
+        saveState();
+      });
+
+      // 주간 할 일 추가
+      document.getElementById('form-weekly-add').addEventListener('submit', e => {
+        e.preventDefault();
+        const tagInput = document.getElementById('input-weekly-tag');
+        const taskInput = document.getElementById('input-weekly-task');
+        const text = taskInput.value.trim();
+        if (!text) return;
+
+        getWeekData().tasks.push({
+          id: uid(),
+          tag: tagInput.value.trim(),
+          text,
+          done: false,
+          fromMonthly: false,
+        });
+        tagInput.value = '';
+        taskInput.value = '';
+        saveState();
+        renderWeekly();
+      });
+
+      // 일간 입력 필드
+      document.getElementById('input-day-note').addEventListener('input', e => {
+        getDayData().note = e.target.value;
+        saveState();
+      });
+      document.getElementById('input-day-review').addEventListener('input', e => {
+        getDayData().review = e.target.value;
+        saveState();
+      });
+
+      // 일간 할 일 추가
+      document.getElementById('form-daily-add').addEventListener('submit', e => {
+        e.preventDefault();
+        const timeInput = document.getElementById('input-daily-time');
+        const taskInput = document.getElementById('input-daily-task');
+        const detailInput = document.getElementById('input-daily-detail');
+        const text = taskInput.value.trim();
+        if (!text) return;
+
+        getDayData().tasks.push({
+          id: uid(),
+          time: timeInput.value.trim(),
+          text,
+          detail: detailInput.value.trim(),
+          done: false,
+          fromWeekly: false,
+        });
+        timeInput.value = '';
+        taskInput.value = '';
+        detailInput.value = '';
+        saveState();
+        renderCalendarGrid();
+        renderDaily();
+      });
+
+      // 타임라인 시간 추가
+      document.getElementById('btn-add-timeslot').addEventListener('click', () => {
+        getDayData().timeBlocks.push({
+          id: uid(),
+          time: '',
+          content: '',
+        });
+        saveState();
+        renderDaily();
+      });
+
+      // 인쇄 버튼
+      document.getElementById('btn-print').addEventListener('click', () => {
+        window.print();
+      });
+
+      // 데이터 백업 (JSON 파일 다운로드 -> 아이패드 '파일' 앱 / iCloud Drive 저장 가능)
+      document.getElementById('btn-export').addEventListener('click', () => {
+        try {
+          const dataStr = JSON.stringify(state, null, 2);
+          const blob = new Blob([dataStr], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `topdown_planner_backup_${TODAY_KEY}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showToast('백업 파일이 저장되었습니다.');
+        } catch (err) {
+          console.error('백업 실패:', err);
+          showToast('백업 파일 생성 중 오류가 발생했습니다.');
+        }
+      });
+
+      // 데이터 복원 (JSON 파일 불러오기)
+      const importInput = document.getElementById('input-import-file');
+      document.getElementById('btn-import').addEventListener('click', () => {
+        importInput.value = '';
+        importInput.click();
+      });
+
+      importInput.addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = event => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            if (!imported.months || !imported.weeks || !imported.days) {
+              showToast('올바른 플래너 백업 파일이 아닙니다.');
+              return;
+            }
+            state = imported;
+            saveState();
+            renderAll();
+            showToast('백업 데이터를 성공적으로 복원했습니다.');
+          } catch (err) {
+            console.error('복원 실패:', err);
+            showToast('파일을 읽는 중 오류가 발생했습니다.');
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // 초기화 모달 제어
+      const modal = document.getElementById('modal-reset');
+      document.getElementById('btn-reset-open').addEventListener('click', () => {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      });
+      document.getElementById('btn-reset-cancel').addEventListener('click', () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      });
+      document.getElementById('btn-reset-confirm').addEventListener('click', () => {
+        state = createDefaultData(true);
+        saveState();
+        renderAll();
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        showToast('깨끗한 새 플래너로 초기화되었습니다.');
+      });
+    });
+  </script>
+</body>
+</html>
