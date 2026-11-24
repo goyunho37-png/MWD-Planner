@@ -1989,5 +1989,182 @@
   }
 })();
 </script>
+<!-- ===================================================================== -->
+<!-- 아이패드 ↔ 아이폰 실시간 자동 연동 모듈 (index.html의 </body> 바로 위에 붙여넣기) -->
+<!-- ===================================================================== -->
+<script>
+(function initFirebaseRealtimeSync() {
+  // ▼ 1. 여기에 Firebase Realtime Database 주소를 붙여넣으세요 (끝에 슬래시 / 없이)
+  const FIREBASE_DB_URL = 'https://planner-7e559-default-rtdb.asia-southeast1.firebasedatabase.app/';
+
+  // ▼ 2. 나만 아는 비밀 방 이름 (영어+숫자 자유롭게 변경 추천)
+  const MY_SECRET_KEY = 'felix04137';
+
+  // 주소가 아직 입력되지 않았으면 실행하지 않음
+  if (!FIREBASE_DB_URL || FIREBASE_DB_URL.includes('여기에_')) {
+    console.info('[실시간 연동] FIREBASE_DB_URL을 입력하면 자동 연동이 시작됩니다.');
+    return;
+  }
+
+  const ENDPOINT = `${FIREBASE_DB_URL.replace(/\/+$/, '')}/planners/${encodeURIComponent(MY_SECRET_KEY)}.json`;
+  const DEVICE_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
+
+  let lastAppliedAt = 0;
+  let pushTimer = null;
+  let isApplyingRemote = false;
+  let eventSource = null;
+
+  // 상단 저장 상태 표시 업데이트
+  function setSyncBadge(text, colorClass) {
+    const statusEl = document.getElementById('save-status');
+    if (!statusEl) return;
+    statusEl.classList.remove('hidden');
+    statusEl.classList.add('inline-flex');
+    statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${colorClass}"></span> ${text}`;
+  }
+
+  // 원격 데이터를 현재 화면에 반영
+  function applyRemotePayload(payload) {
+    if (!payload || !payload.data) return;
+    if (payload.deviceId === DEVICE_ID) return;
+    if (payload.updatedAt && payload.updatedAt <= lastAppliedAt) return;
+
+    const remote = payload.data;
+    if (!remote.months || !remote.weeks || !remote.days) return;
+
+    isApplyingRemote = true;
+    try {
+      // 현재 보고 있는 뷰/날짜 선택은 유지하면서 실제 계획 데이터만 동기화
+      state.months = remote.months;
+      state.weeks = remote.weeks;
+      state.days = remote.days;
+      if (remote.timetablePlans) state.timetablePlans = remote.timetablePlans;
+
+      lastAppliedAt = payload.updatedAt || Date.now();
+      localStorage.setItem('topdown_planner_v2_calendar', JSON.stringify(state));
+
+      if (typeof renderAll === 'function') {
+        renderAll();
+      } else {
+        if (typeof renderMonthly === 'function') renderMonthly();
+        if (typeof renderWeekly === 'function') renderWeekly();
+        if (typeof renderDaily === 'function') renderDaily();
+      }
+      setSyncBadge('실시간 연동됨', 'bg-emerald-400');
+    } catch (e) {
+      console.error('[실시간 연동] 데이터 반영 오류:', e);
+    } finally {
+      isApplyingRemote = false;
+    }
+  }
+
+  // 현재 기기의 데이터를 Firebase로 업로드 (0.4초 디바운스)
+  function schedulePush() {
+    if (isApplyingRemote) return;
+    clearTimeout(pushTimer);
+    setSyncBadge('동기화 중...', 'bg-indigo-400 animate-pulse');
+
+    pushTimer = setTimeout(async () => {
+      try {
+        const now = Date.now();
+        lastAppliedAt = now;
+        const res = await fetch(ENDPOINT, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            updatedAt: now,
+            deviceId: DEVICE_ID,
+            data: state,
+          }),
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        setSyncBadge('실시간 연동됨', 'bg-emerald-400');
+      } catch (err) {
+        console.error('[실시간 연동] 업로드 실패:', err);
+        setSyncBadge('연동 오류', 'bg-rose-400');
+      }
+    }, 400);
+  }
+
+  // 최신 데이터 한 번 불러오기 (초기 실행 & 앱 다시 열었을 때)
+  async function pullLatest(uploadIfEmpty = false) {
+    try {
+      const res = await fetch(ENDPOINT);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const payload = await res.json();
+
+      if (payload && payload.data) {
+        applyRemotePayload(payload);
+      } else if (uploadIfEmpty && typeof state !== 'undefined') {
+        // 클라우드가 비어있으면 현재 기기(아이패드)의 기존 계획을 자동 업로드
+        schedulePush();
+      }
+      setSyncBadge('실시간 연동됨', 'bg-emerald-400');
+    } catch (err) {
+      console.error('[실시간 연동] 불러오기 실패:', err);
+      setSyncBadge('오프라인 저장', 'bg-amber-400');
+    }
+  }
+
+  // 실시간 변경 감지 스트림 연결 (Firebase SSE)
+  function connectRealtimeStream() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+    try {
+      eventSource = new EventSource(ENDPOINT);
+      eventSource.addEventListener('put', e => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg && msg.path === '/' && msg.data) {
+            applyRemotePayload(msg.data);
+          } else {
+            pullLatest(false);
+          }
+        } catch (err) {
+          console.error('[실시간 연동] 스트림 파싱 오류:', err);
+        }
+      });
+      eventSource.onerror = () => {
+        // 연결이 끊기면 5초 뒤 자동 재연결
+        if (eventSource) eventSource.close();
+        setTimeout(connectRealtimeStream, 5000);
+      };
+    } catch (err) {
+      console.error('[실시간 연동] 스트림 연결 오류:', err);
+    }
+  }
+
+  // 기존 saveState()에 실시간 업로드 자동 연결
+  function startSync() {
+    if (typeof window.saveState === 'function' && !window.saveState.__syncHooked) {
+      const originalSave = window.saveState;
+      window.saveState = function() {
+        const result = originalSave.apply(this, arguments);
+        schedulePush();
+        return result;
+      };
+      window.saveState.__syncHooked = true;
+    }
+
+    // 앱을 백그라운드에서 다시 열 때 즉시 최신 상태 확인 (아이폰/아이패드 필수)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        pullLatest(false);
+      }
+    });
+
+    pullLatest(true);
+    connectRealtimeStream();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startSync);
+  } else {
+    startSync();
+  }
+})();
+</script>
 </body>
 </html>
